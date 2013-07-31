@@ -9,12 +9,31 @@ gem_full_path="$(cd "$gem" && pwd)"
 lib_file="$gem_full_path/lib/$gem_basename.rb"
 bin_file="$gem_full_path/bin/$gem_basename"
 
+# All compiled files by silvester
+declare -a compiled_files
+
 # Prints error message on STDERR and exits with failure status.
 #
 #   $1 - the error message to be print.
 abort() {
   echo "$1" >&2
   exit 1
+}
+
+# Check if a given file has already been compiled. The comparison is made against
+# the files present in the `compiled_files` variable.
+#
+#   $1 - the name of the file that should be checked.
+already_compiled() {
+  local file
+
+  for file in "${compiled_files[*]}"; do
+    if [[ "$file" = "$1" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 # Checks if the passed gem path is valid. It must have the following properties:
@@ -64,8 +83,13 @@ clean() {
 #
 #   $1 - the file to be compiled.
 compile() {
+  local file
+
   for file in `required_files "$1"`; do
-    compile "$file"
+    if ! already_compiled "$file"; then
+      compiled_files+=("$file")
+      compile "$file"
+    fi
   done
 
   clean "$1"
@@ -74,7 +98,7 @@ compile() {
 sylvester() {
   echo "#!/usr/bin/env ruby"
   compile "$lib_file"
-  clean "$bin_file"
+  compile "$bin_file"
 }
 
 check_valid_structure
