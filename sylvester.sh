@@ -9,6 +9,8 @@ gem_full_path="$(cd "$gem" && pwd)"
 lib_file="$gem_full_path/lib/$gem_basename.rb"
 bin_file="$gem_full_path/bin/$gem_basename"
 
+git_ref="$2"
+
 # All compiled files by silvester
 declare -a compiled_files
 
@@ -45,6 +47,21 @@ check_valid_structure() {
   if ! [[ -n "$gem" && -d "$gem" && -d "$gem/lib" && -f "$gem/lib/$gem_basename.rb" ]]; then
     abort "Invalid gem path: $gem"
   fi
+}
+
+# Checks if the script was given a specific git reference, passed as the second
+# parameter on the script invokation.
+has_git_ref() {
+  [[ -n "$git_ref" ]]
+}
+
+# Checks out to a specific git reference in the gem repository.
+#
+#   $1 - the git reference to checkout to.
+checkout_to() {
+  pushd "$gem_full_path" &>/dev/null
+  git checkout "$1" &>/dev/null
+  popd >&/dev/null
 }
 
 # Reads the passed file and returns the path for all local files required.
@@ -96,9 +113,17 @@ compile() {
 }
 
 sylvester() {
+  if has_git_ref; then
+    checkout_to "$git_ref"
+  fi
+
   echo "#!/usr/bin/env ruby"
   compile "$lib_file"
   compile "$bin_file"
+
+  if has_git_ref; then
+    checkout_to "-"
+  fi
 }
 
 check_valid_structure
